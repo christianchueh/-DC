@@ -1,28 +1,20 @@
-import threading
-from flask import Flask
-
-# 建立一個超簡單的網頁伺服器
-app = Flask('')
-
-@app.route('/')
-def home():
-    return "🤖 機器人正在雲端 24 小時運作中！"
-
-def run_web_server():
-    # 使用 threaded=True 確保多執行緒安全，並關閉 Debug 模式避免干擾主程式
-    app.run(host='0.0.0.0', port=10000, debug=False, use_reloader=False)
-
-# 設定 daemon=True，當主程式結束時，這個背景網頁也會自動關閉，不會佔用伺服器記憶體
-server_thread = threading.Thread(target=run_web_server, daemon=True)
-server_thread.start()
-
 import sys
 import asyncio
 import random
 import discord
-import os  # 引入環境變數模組
+import os
 from discord.ext import commands
+from fastapi import FastAPI
+import uvicorn
 
+# ─── 1. 建立 FastAPI 網頁伺服器 ───
+app = FastAPI()
+
+@app.get("/")
+async def home():
+    return {"status": "🤖 誰是臥底機器人 24 暢通運作中！"}
+
+# ─── 2. Discord 機器人基本設定 ───
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
@@ -30,8 +22,6 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ─── 改動 1：將遊戲資料庫改為支援多伺服器 ───
-# 結構會變成 { guild_id: { 遊戲資料 } }
 games = {}
 
 WORD_BANK = [
@@ -41,7 +31,6 @@ WORD_BANK = [
     {"civilian": "周杰倫", "undercover": "王力宏"}
 ]
 
-# 輔助函式：取得或初始化該伺服器的遊戲狀態
 def get_game_state(guild_id):
     if guild_id not in games:
         games[guild_id] = {
@@ -56,7 +45,7 @@ def get_game_state(guild_id):
 
 def reset_all_game(guild_id):
     if guild_id in games:
-        del games[guild_id] # 直接刪除，下次執行時會重新初始化
+        del games[guild_id]
 
 @bot.event
 async def on_ready():
@@ -64,7 +53,7 @@ async def on_ready():
 
 @bot.command(name="報名")
 async def sign_up(ctx):
-    game = get_game_state(ctx.guild.id) # 取得當前伺服器的遊戲狀態
+    game = get_game_state(ctx.guild.id)
     if game["is_active"]:
         await ctx.send("⚠️ 遊戲正在進行，請稍候。")
         return
@@ -153,9 +142,22 @@ async def force_stop(ctx):
     reset_all_game(ctx.guild.id)
     await ctx.send("⏹️ 遊戲資料庫已清空重置。")
 
-# ─── 改動 2：從環境變數讀取 TOKEN，確保安全 ───
-TOKEN = os.getenv("DISCORD_TOKEN")
-if TOKEN:
-    bot.run(TOKEN)
-else:
-    print("❌ 錯誤：找不到環境變數 DISCORD_TOKEN，請檢查雲端設定。")
+# ─── 3. 終極核心：用同一個異步事件循環啟動兩者 ───
+async def main():
+    TOKEN = os.getenv("DISCORD_TOKEN")
+    if not TOKEN:
+        print("❌ 錯誤：找不到環境變數 DISCORD_TOKEN")
+        return
+
+    # 設定 Uvicorn 網頁伺服器配置
+    config = uvicorn.Config(app, host="0.0.0.0", port=10000, log_level="info")
+    server = uvicorn.Server(config)
+
+    # 同時併發運行：網頁伺服器 與 Discord 機器人
+    await asyncio.gather(
+        server.serve(),
+        bot.start(TOKEN)
+    )
+
+if __name__ == "__main__":
+    asyncio.run(main())
