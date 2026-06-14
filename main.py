@@ -1,3 +1,20 @@
+import threading
+from flask import Flask
+
+# 建立一個超簡單的網頁伺服器
+app = Flask('')
+
+@app.route('/')
+def home():
+    return "🤖 機器人正在雲端 24 小時運作中！"
+
+def run_web_server():
+    # Render 規定免費網頁必須綁定在 10000 端口
+    app.run(host='0.0.0.0', port=10000)
+
+# 開闢一條新道路（執行緒），讓網頁在背景跑，不影響 Discord 機器人
+threading.Thread(target=run_web_server).start()
+
 import sys
 import asyncio
 import random
