@@ -9,11 +9,12 @@ def home():
     return "🤖 機器人正在雲端 24 小時運作中！"
 
 def run_web_server():
-    # Render 規定免費網頁必須綁定在 10000 端口
-    app.run(host='0.0.0.0', port=10000)
+    # 使用 threaded=True 確保多執行緒安全，並關閉 Debug 模式避免干擾主程式
+    app.run(host='0.0.0.0', port=10000, debug=False, use_reloader=False)
 
-# 開闢一條新道路（執行緒），讓網頁在背景跑，不影響 Discord 機器人
-threading.Thread(target=run_web_server).start()
+# 設定 daemon=True，當主程式結束時，這個背景網頁也會自動關閉，不會佔用伺服器記憶體
+server_thread = threading.Thread(target=run_web_server, daemon=True)
+server_thread.start()
 
 import sys
 import asyncio
