@@ -10,7 +10,7 @@ import uvicorn
 # ─── 1. 建立 FastAPI 網頁伺服器 ───
 app = FastAPI()
 
-# 讓這個路由同時接收 GET 和 HEAD 請求
+# 調整此處：使其同時相容 UptimeRobot 的 HEAD 與瀏覽器的 GET
 @app.route("/", methods=["GET", "HEAD"])
 async def home(request):
     return {"status": "🤖 誰是臥底機器人 24 暢通運作中！"}
@@ -143,18 +143,16 @@ async def force_stop(ctx):
     reset_all_game(ctx.guild.id)
     await ctx.send("⏹️ 遊戲資料庫已清空重置。")
 
-# ─── 3. 終極核心：用同一個異步事件循環啟動兩者 ───
+# ─── 3. 用同一個事件循環啟動 ───
 async def main():
     TOKEN = os.getenv("DISCORD_TOKEN")
     if not TOKEN:
         print("❌ 錯誤：找不到環境變數 DISCORD_TOKEN")
         return
 
-    # 設定 Uvicorn 網頁伺服器配置
     config = uvicorn.Config(app, host="0.0.0.0", port=10000, log_level="info")
     server = uvicorn.Server(config)
 
-    # 同時併發運行：網頁伺服器 與 Discord 機器人
     await asyncio.gather(
         server.serve(),
         bot.start(TOKEN)
