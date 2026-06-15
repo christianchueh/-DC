@@ -10,8 +10,9 @@ import uvicorn
 # ─── 1. 建立 FastAPI 網頁伺服器 ───
 app = FastAPI()
 
-@app.get("/")
-async def home():
+# 讓這個路由同時接收 GET 和 HEAD 請求
+@app.route("/", methods=["GET", "HEAD"])
+async def home(request):
     return {"status": "🤖 誰是臥底機器人 24 暢通運作中！"}
 
 # ─── 2. Discord 機器人基本設定 ───
